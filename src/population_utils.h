@@ -1,13 +1,95 @@
-//
-// Created by s1548787@sms.ed.ac.uk on 28/11/22.
-//
-
 #ifndef MPP_AUTOMATON_POPULATION_UTILS_H
 #define MPP_AUTOMATON_POPULATION_UTILS_H
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdbool.h>
+#include <math.h>
 
 /// cell type represents individual cell in the population.
 typedef char cell;
+
+/**
+ * Inserts column into 2D array in-place using offset. Unsafe - results in segmentation fault if insertion index falls
+ * outside array boundaries.
+ *
+ * @param mat       Target 2D array to be modified in-place.
+ * @param col       Source array to be inserted.
+ * @param width     Row width.
+ * @param len       Length of the source array.
+ * @param pos       Position of the column.
+ * @param offset    Offset to be added.
+ */
+void insert_column(cell *mat, cell *col, unsigned int width, unsigned int len, unsigned int pos, unsigned int offset) {
+    for (unsigned int i = 0; i < len; i++) {
+        mat[(i + offset) * width + pos] = col[i];
+    }
+}
+
+/**
+ * Inserts row into 2D array in-place using offset. Unsafe - results in segmentation fault if insertion index falls
+ * outside array boundaries.
+ *
+ * @param mat       Target 2D array to be modified in-place.
+ * @param col       Source array to be inserted.
+ * @param width     Row width.
+ * @param len       Length of the source array.
+ * @param pos       Position of the column.
+ * @param offset    Offset to be added.
+ */
+void insert_row(cell *mat, cell *col, unsigned int width, unsigned int len, unsigned int pos, unsigned int offset) {
+    for (unsigned int i = 0; i < len; i++) {
+        mat[pos * width + i + offset] = col[i];
+    }
+}
+
+/**
+ * Inserts left halo in-place into augmented population of cells.
+ *
+ * @param mat   Augmented population of cells.
+ * @param halo  Left halo.
+ * @param width Row width.
+ * @param len   Halo width.
+ */
+void insert_left_halo(cell *mat, cell *halo, unsigned int width, unsigned int len) {
+    insert_column(mat, halo, width, len, 0, 1);
+}
+
+/**
+ * Inserts right halo in-place into augmented population of cells.
+ *
+ * @param mat   Augmented population of cells.
+ * @param halo  Right halo.
+ * @param width Row width.
+ * @param len   Halo width.
+ */
+void insert_right_halo(cell *mat, cell *halo, unsigned int width, unsigned int len) {
+    insert_column(mat, halo, width, len, width - 1, 1);
+}
+
+/**
+ * Inserts upper halo in-place into augmented population of cells.
+ *
+ * @param mat   Augmented population of cells.
+ * @param halo  Upper halo.
+ * @param width Row width.
+ * @param len   Halo width.
+ */
+void insert_upper_halo(cell *mat, cell *halo, unsigned int width, unsigned int len) {
+    insert_row(mat, halo, width, len, 0, 1);
+}
+
+/**
+ * Inserts lower halo in-place into augmented population of cells.
+ *
+ * @param mat   Augmented population of cells.
+ * @param halo  Lower halo.
+ * @param width Row width.
+ * @param len   Halo width.
+ */
+void insert_lower_halo(cell *mat, cell *halo, unsigned int height, unsigned int width, unsigned int len) {
+    insert_row(mat, halo, width, len, height - 1, 1);
+}
 
 
 /**
@@ -24,7 +106,7 @@ typedef char cell;
 cell *extract_column(cell *mat, unsigned int width, unsigned int len, unsigned int pos, unsigned int offset) {
     cell *column = malloc(len * sizeof(cell));
 
-    for (int i = 0; i < len; i++) {
+    for (unsigned int i = 0; i < len; i++) {
         column[i] = mat[(i + offset) * width + pos];
     }
 
@@ -45,7 +127,7 @@ cell *extract_column(cell *mat, unsigned int width, unsigned int len, unsigned i
 cell *extract_row(cell *mat, unsigned int width, unsigned int len, unsigned int pos, unsigned int offset) {
     cell *row = malloc(len * sizeof(cell));
 
-    for (int i = 0; i < len; i++) {
+    for (unsigned int i = 0; i < len; i++) {
         row[i] = mat[pos * width + i + offset];
     }
 
@@ -146,6 +228,88 @@ unsigned int update_population(cell *mat, cell *buf, unsigned int height, unsign
     }
 
     return tally;
+}
+
+/***
+ * Sets halos in augmented population of cells to zeros.
+ *
+ * @param mat       Augmented population of cells.
+ * @param height    Height of the population.
+ * @param width     Width of the population.
+ */
+void reset_halos(cell *mat, unsigned int height, unsigned int width) {
+    unsigned int i;
+
+    // Reset columns.
+    for (i = 1; i < height - 1; i++) {
+        mat[i * width] = 0;
+        mat[i * width + width - 1] = 0;
+    }
+
+    // Reset rows.
+    for (i = 1; i < width - 1; i++) {
+        mat[i] = 0;
+        mat[(width - 1) * width + i] = 0;
+    }
+}
+
+
+/**
+ * Draws samples from uniform distribution.
+ *
+ * @return  Float in the range [0, 1] sampled from uniform distribution.
+ */
+static inline float uniform() {
+    return (float) rand() / (float) (RAND_MAX);
+}
+
+/**
+ * Wraps default population initialization strategy.
+ *
+ * @param p Probability of a cell being alive.
+ * @return  Cell.
+ */
+static inline cell fuzzer(float p) {
+    return (uniform() < p) ? 1 : 0;
+}
+
+/**
+ * Initializes augmented population of cells using default strategy.
+ *
+ * @param mat       Augmented population of cells.
+ * @param height    Height of the population.
+ * @param width     Width of the population.
+ * @param p         Probability of a cell being alive.
+ * @return          Total number of live cells.
+ */
+unsigned int randomize_augmented_population(cell *mat, unsigned int height, unsigned int width, float p) {
+    unsigned int alive = 0;
+
+    for (unsigned int i = 1; i < height - 1; i++) {
+        for (unsigned int j = 1; j < width - 1; j++) {
+            mat[i * width + j] = fuzzer(p);
+            alive += mat[i * width + j];
+        }
+    }
+
+    return alive;
+}
+
+/**
+ * Generates random augmented population of cells using uniform distribution.
+ *
+ * @param height    Height of the population.
+ * @param width     Width of the population.
+ * @param p         Probability of a cell being alive.
+ * @return          Pointer representing augmented population of cells.
+ */
+cell *random_augmented_population(unsigned int height, unsigned int width, float p) {
+    cell *population = malloc((height + 2) * (width + 2) * sizeof(cell));
+
+    randomize_augmented_population(population, height, width, p);
+    reset_halos(population, height, width);
+
+    return population;
 }
 
 #endif //MPP_AUTOMATON_POPULATION_UTILS_H
