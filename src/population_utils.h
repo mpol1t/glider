@@ -6,6 +6,12 @@
 #include <stdbool.h>
 #include <math.h>
 
+#define UP 0
+#define RIGHT 1
+#define DOWN 2
+#define LEFT 3
+
+
 /// cell type represents individual cell in the population.
 typedef char cell;
 
@@ -43,54 +49,22 @@ void insert_row(cell *mat, cell *col, unsigned int width, unsigned int len, unsi
     }
 }
 
-/**
- * Inserts left halo in-place into augmented population of cells.
- *
- * @param mat   Augmented population of cells.
- * @param halo  Left halo.
- * @param width Row width.
- * @param len   Halo width.
- */
-void insert_left_halo(cell *mat, cell *halo, unsigned int width, unsigned int len) {
-    insert_column(mat, halo, width, len, 0, 1);
+void insert_halo(cell *mat, cell *halo, unsigned int height, unsigned int width, unsigned int len, int pos) {
+    switch (pos) {
+        case UP:
+            insert_row(mat, halo, width, len, 0, 1);
+            break;
+        case DOWN:
+            insert_row(mat, halo, width, len, height - 1, 1);
+            break;
+        case LEFT:
+            insert_column(mat, halo, width, len, 0, 1);
+            break;
+        case RIGHT:
+            insert_column(mat, halo, width, len, width - 1, 1);
+            break;
+    }
 }
-
-/**
- * Inserts right halo in-place into augmented population of cells.
- *
- * @param mat   Augmented population of cells.
- * @param halo  Right halo.
- * @param width Row width.
- * @param len   Halo width.
- */
-void insert_right_halo(cell *mat, cell *halo, unsigned int width, unsigned int len) {
-    insert_column(mat, halo, width, len, width - 1, 1);
-}
-
-/**
- * Inserts upper halo in-place into augmented population of cells.
- *
- * @param mat   Augmented population of cells.
- * @param halo  Upper halo.
- * @param width Row width.
- * @param len   Halo width.
- */
-void insert_upper_halo(cell *mat, cell *halo, unsigned int width, unsigned int len) {
-    insert_row(mat, halo, width, len, 0, 1);
-}
-
-/**
- * Inserts lower halo in-place into augmented population of cells.
- *
- * @param mat   Augmented population of cells.
- * @param halo  Lower halo.
- * @param width Row width.
- * @param len   Halo width.
- */
-void insert_lower_halo(cell *mat, cell *halo, unsigned int height, unsigned int width, unsigned int len) {
-    insert_row(mat, halo, width, len, height - 1, 1);
-}
-
 
 /**
  * Extracts single column from 2D array using offset. This function is unsafe, and will result in segmentation fault if
@@ -103,14 +77,10 @@ void insert_lower_halo(cell *mat, cell *halo, unsigned int height, unsigned int 
  * @param offset    Offset to apply.
  * @return          Pointer to 1D array representing single column.
  */
-cell *extract_column(cell *mat, unsigned int width, unsigned int len, unsigned int pos, unsigned int offset) {
-    cell *column = malloc(len * sizeof(cell));
-
+void copy_column(cell *mat, cell *col, unsigned int width, unsigned int len, unsigned int pos, unsigned int offset) {
     for (unsigned int i = 0; i < len; i++) {
-        column[i] = mat[(i + offset) * width + pos];
+        col[i] = mat[(i + offset) * width + pos];
     }
-
-    return column;
 }
 
 /**
@@ -124,62 +94,27 @@ cell *extract_column(cell *mat, unsigned int width, unsigned int len, unsigned i
  * @param offset    Offset to apply.
  * @return          Pointer to 1D array representing single row.
  */
-cell *extract_row(cell *mat, unsigned int width, unsigned int len, unsigned int pos, unsigned int offset) {
-    cell *row = malloc(len * sizeof(cell));
-
+void copy_row(cell *mat, cell *row, unsigned int width, unsigned int len, unsigned int pos, unsigned int offset) {
     for (unsigned int i = 0; i < len; i++) {
         row[i] = mat[pos * width + i + offset];
     }
-
-    return row;
 }
 
-/**
- * Extracts left halo from augmented cell population.
- *
- * @param mat       2D array representing cell population.
- * @param height    Height of the population.
- * @param width     Width of the population.
- * @return          Pointer to 1D array that contains left halo.
- */
-cell *extract_left_halo(cell *mat, unsigned int height, unsigned width) {
-    return extract_column(mat, width, height - 2, 1, 1);
-}
-
-/**
- * Extracts right halo from augmented cell population.
- *
- * @param mat       2D array representing cell population.
- * @param height    Height of the population.
- * @param width     Width of the population.
- * @return          Pointer to 1D array that contains right halo.
- */
-cell *extract_right_halo(cell *mat, unsigned int height, unsigned width) {
-    return extract_column(mat, width, height - 2, width - 2, 1);
-}
-
-/**
- * Extracts upper halo from augmented cell population.
- *
- * @param mat       2D array representing cell population.
- * @param height    Height of the population.
- * @param width     Width of the population.
- * @return          Pointer to 1D array that contains upper halo.
- */
-cell *extract_upper_halo(cell *mat, unsigned int height, unsigned width) {
-    return extract_row(mat, width, width - 2, 1, 1);
-}
-
-/**
- * Extracts lower halo from augmented cell population.
- *
- * @param mat       2D array representing cell population.
- * @param height    Height of the population.
- * @param width     Width of the population.
- * @return          Pointer to 1D array that contains lower halo.
- */
-cell *extract_lower_halo(cell *mat, unsigned int height, unsigned width) {
-    return extract_row(mat, width, width - 2, height - 2, 1);
+void copy_halo(cell *mat, cell *buf, unsigned int height, unsigned width, int pos) {
+    switch (pos) {
+        case UP:
+            copy_row(mat, buf, width, width - 2, 1, 1);
+            break;
+        case DOWN:
+            copy_row(mat, buf, width, width - 2, height - 2, 1);
+            break;
+        case LEFT:
+            copy_column(mat, buf, width, height - 2, 1, 1);
+            break;
+        case RIGHT:
+            copy_column(mat, buf, width, height - 2, width - 2, 1);
+            break;
+    }
 }
 
 /**
