@@ -6,6 +6,7 @@
 
 #include "arg_parser.h"
 #include "population_utils.h"
+#include "io.h"
 
 #define UP 0
 #define RIGHT 1
@@ -434,6 +435,8 @@ int main(int argc, char *argv[]) {
     } else {
         run_worker(&simulation, fst_generation, snd_generation);
     }
+
+    to_pbm("cell.pbm", fst_generation, simulation.local_augmented_height, simulation.local_augmented_width);
 
 
     // Free resources.
