@@ -8,50 +8,42 @@
 #include <string.h>
 
 
-#define DEFAULT_PROB 0.5
-#define DEFAULT_HEIGHT 10000
-#define DEFAULT_WIDTH 10000
-#define DEFAULT_N_PROC 8
+#define DEFAULT_PROB 0.49
+#define DEFAULT_HEIGHT 768
+#define DEFAULT_WIDTH 768
 #define DEFAULT_MAX_STEPS 1000
 #define DEFAULT_PRINT_INTERVAL 100
-#define DEFAULT_SEED 0
-
-#define MAX_FILENAME_LEN 100
 
 
 const char *argp_program_version = "automaton 0.0.1";
 const char *argp_program_bug_address = "s1548787@sms.ed.ac.uk";
 static char doc[] = "Blah blah blah...";
-static char args_doc[] = "[FILENAME]...";
+static char args_doc[] = "[SEED]...";
 
 static struct argp_option options[] = {
         {"prob",           'p', "NUM", 0, "Probability of a cell being alive."},
         {"height",         'h', "NUM", 0, "Height of the simulation environment."},
         {"width",          'w', "NUM", 0, "Width of the simulation environment."},
-        {"n_proc",         'n', "NUM", 0, "Number of processes to use."},
         {"max_steps",      'm', "NUM", 0, "Maximum number of steps."},
         {"print_interval", 'i', "NUM", 0, "Number of steps between printing stats."},
-        {"seed",           's', "NUM", 0, "Random number generator seed."},
         {0}
 };
 
 
 typedef struct {
-    float prob;
+    double prob;
     int height;
     int width;
-    int n_proc;
     int max_steps;
     int print_interval;
     int seed;
-    char filename[MAX_FILENAME_LEN];
 } Arguments;
 
 
 static error_t parse_opt(int key, char *arg, struct argp_state *state) {
     Arguments *arguments = state->input;
 
-    float prob;
+    double prob;
 
     switch (key) {
         case 'p':
@@ -70,23 +62,17 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
         case 'w':
             arguments->width = atoi(arg);
             break;
-        case 'n':
-            arguments->n_proc = atoi(arg);
-            break;
         case 'm':
             arguments->max_steps = atoi(arg);
             break;
         case 'i':
             arguments->print_interval = atoi(arg);
             break;
-        case 's':
-            arguments->seed = atoi(arg);
-            break;
         case ARGP_KEY_ARG:
             if (state->arg_num > 1) {
                 argp_usage(state);
             }
-            strcpy(arguments->filename, arg);
+            arguments->seed = atoi(arg);
             break;
         case ARGP_KEY_END:
             if (state->arg_num < 1) {
@@ -108,10 +94,8 @@ Arguments default_args() {
             .prob             = DEFAULT_PROB,
             .height           = DEFAULT_HEIGHT,
             .width            = DEFAULT_WIDTH,
-            .n_proc           = DEFAULT_N_PROC,
             .max_steps        = DEFAULT_MAX_STEPS,
             .print_interval   = DEFAULT_PRINT_INTERVAL,
-            .seed             = DEFAULT_SEED,
     };
 
     return args;

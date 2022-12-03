@@ -18,35 +18,8 @@ const int CONTROLLER_RANK = 0;
 const int PERIODS[2] = {1, 0};
 const bool REORDER = false;
 
-
-typedef struct {
-    int height;
-    int width;
-    int rows;
-    int columns;
-    MPI_Comm comm;
-} Grid;
-
-
-typedef struct {
-    int left;
-    int right;
-    int up;
-    int down;
-} Neighbours;
-
-
-typedef struct {
-    unsigned int x_coordinate;
-    unsigned int y_coordinate;
-    unsigned int height;
-    unsigned int width;
-    unsigned int rank;
-
-    int seed;
-
-    Neighbours neighbours;
-} Process;
+const double UPPER_THRESHOLD_RATIO = 3.0 / 2.0;
+const double LOWER_THRESHOLD_RATIO = 2.0 / 3.0;
 
 
 typedef struct {
@@ -70,104 +43,63 @@ typedef struct {
     cell *right_recv;
 } SwapBuffer;
 
+void free_swap_buffer(SwapBuffer *buf) {
+    free(buf->recv_buf);
+    free(buf->send_buf);
+    free(buf->recv_status_buf);
+    free(buf->send_status_buf);
+    free(buf->up_send);
+    free(buf->down_send);
+    free(buf->left_send);
+    free(buf->right_send);
+    free(buf->up_recv);
+    free(buf->down_recv);
+    free(buf->left_recv);
+    free(buf->right_recv);
+}
+
+
+typedef struct {
+    /**
+     * Global variables.
+     */
+    unsigned int n_proc;
+    unsigned int rows;
+    unsigned int cols;
+
+    unsigned long long lower_early_stopping_threshold;
+    unsigned long long upper_early_stopping_threshold;
+
+    /**
+     * Local variables.
+     */
+    int left_neighbour;
+    int right_neighbour;
+    int upper_neighbour;
+    int lower_neighbour;
+
+    unsigned int x_coordinate;
+    unsigned int y_coordinate;
+
+    unsigned int local_width;
+    unsigned int local_height;
+    unsigned int local_augmented_width;
+    unsigned int local_augmented_height;
+
+    int rank;
+
+    MPI_Comm comm;
+    SwapBuffer *swap_buffer;
+    Arguments *args;
+} SimulationData;
+
 
 int get_chunk_size(int length, int pos, int n) {
     return (pos + 1 == n) ? length - (floor(length / n) * (n - 1)) : floor(length / n);
 }
 
 
-Neighbours find_neighbours(MPI_Comm comm, int source_rank) {
-    int left, right, up, down;
-
-    MPI_Cart_shift(comm, 1, -1, &source_rank, &left);
-    MPI_Cart_shift(comm, 1, 1, &source_rank, &right);
-    MPI_Cart_shift(comm, 0, -1, &source_rank, &up);
-    MPI_Cart_shift(comm, 0, 1, &source_rank, &down);
-
-    Neighbours neighbours = {
-            .left   = left,
-            .right  = right,
-            .up     = up,
-            .down   = down,
-    };
-
-    return neighbours;
-}
-
-
-Grid get_grid(MPI_Comm comm, int n_proc, int height, int width) {
-    int dims[2] = {0, 0};
-
-    MPI_Comm topology;
-
-    MPI_Dims_create(n_proc, 2, dims);
-    MPI_Cart_create(comm, 2, dims, PERIODS, REORDER, &topology);
-
-    Grid grid = {
-            .height     = height,
-            .width      = width,
-            .rows       = dims[0],
-            .columns    = dims[1],
-            .comm       = topology,
-    };
-
-    return grid;
-}
-
-
-Process get_process_data(Grid grid, int rank, int seed) {
-    unsigned int width, height, *coordinates = malloc(2 * sizeof(int));
-
-    MPI_Cart_coords(grid.comm, rank, 2, coordinates);
-
-    height = get_chunk_size(grid.height, coordinates[0], grid.rows) + 2;
-    width = get_chunk_size(grid.width, coordinates[1], grid.columns) + 2;
-
-    Neighbours neighbours = find_neighbours(grid.comm, rank);
-
-    Process process = {
-            .x_coordinate   = coordinates[0],
-            .y_coordinate   = coordinates[1],
-            .height         = height,
-            .width          = width,
-            .rank           = rank,
-            .neighbours     = neighbours,
-            .seed           = seed,
-    };
-
-    return process;
-}
-
-
-int *random_seeds(int seed, int n) {
-    int *seeds = malloc(n * sizeof(int));
-
-    srand(seed);
-
-    for (int i = 0; i < n; i++) {
-        seeds[i] = rand();
-    }
-
-    return seeds;
-}
-
-void print_process_data(Process data) {
-    printf(
-            "coords=(%d,%d), shape=(%d,%d), rank=%d, seed: %d, L=%d, R=%d, U=%d, D=%d\n",
-            data.x_coordinate,
-            data.y_coordinate,
-            data.height,
-            data.width,
-            data.rank,
-            data.seed,
-            data.neighbours.left,
-            data.neighbours.right,
-            data.neighbours.up,
-            data.neighbours.down
-    );
-}
-
-SwapBuffer *new_swap_buffer(int halo_height, int halo_width) {
+SwapBuffer *init_swap_buffer(unsigned int halo_width, unsigned int halo_height) {
     SwapBuffer *buf = malloc(sizeof(SwapBuffer));
 
     buf->halo_width = halo_width;
@@ -192,114 +124,325 @@ SwapBuffer *new_swap_buffer(int halo_height, int halo_width) {
     return buf;
 }
 
+
+SimulationData init_simulation_data(Arguments *args) {
+    MPI_Comm topology;
+
+    int n_proc, left_neighbour, right_neighbour, upper_neighbour, lower_neighbour, rank, local_width, local_height, local_augmented_width, local_augmented_height;
+
+    int shape[2] = {0, 0};
+    int coordinates[2] = {0, 0};
+
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &n_proc);
+
+
+    // Compute grid shape and create cartesian topology.
+    MPI_Dims_create(n_proc, 2, shape);
+    MPI_Cart_create(MPI_COMM_WORLD, 2, shape, PERIODS, REORDER, &topology);
+
+    // Find neighbours.
+    MPI_Cart_shift(topology, 1, -1, &rank, &left_neighbour);
+    MPI_Cart_shift(topology, 1, 1, &rank, &right_neighbour);
+    MPI_Cart_shift(topology, 0, -1, &rank, &upper_neighbour);
+    MPI_Cart_shift(topology, 0, 1, &rank, &lower_neighbour);
+
+    // Find cartesian coordinates of this process.
+    MPI_Cart_coords(topology, rank, 2, coordinates);
+
+    // Compute population shape.
+    local_width = get_chunk_size(args->width, coordinates[1], shape[1]);
+    local_height = get_chunk_size(args->height, coordinates[0], shape[0]);
+
+    local_augmented_width = local_width + 2;
+    local_augmented_height = local_height + 2;
+
+    SwapBuffer *swap_buffer = init_swap_buffer(local_width, local_height);
+
+    SimulationData data = {
+            .args                           = args,
+            .rank                           = rank,
+            .comm                           = topology,
+            .rows                           = shape[0],
+            .cols                           = shape[1],
+            .n_proc                         = n_proc,
+            .swap_buffer                    = swap_buffer,
+            .x_coordinate                   = coordinates[0],
+            .y_coordinate                   = coordinates[1],
+            .local_width                    = local_width,
+            .local_height                   = local_height,
+            .left_neighbour                 = left_neighbour,
+            .right_neighbour                = right_neighbour,
+            .upper_neighbour                = upper_neighbour,
+            .lower_neighbour                = lower_neighbour,
+            .local_augmented_width          = local_augmented_width,
+            .local_augmented_height         = local_augmented_height,
+    };
+
+    return data;
+}
+
+
+unsigned int *random_seeds(int seed, int n) {
+    int *seeds = malloc(n * sizeof(int));
+
+    srand(seed);
+
+    for (int i = 0; i < n; i++) {
+        seeds[i] = rand();
+    }
+
+    return seeds;
+}
+
+
 static inline void swap_halo(
         cell *pop,
         cell *recv,
         cell *send,
-        int halo_len,
-        int height,
-        int width,
+        unsigned int halo_len,
+        unsigned int height,
+        unsigned int width,
         int target,
         MPI_Request *recv_req,
         MPI_Request *send_req,
         MPI_Comm comm,
-        int pos
+        void (*copy_halo_fn_ptr)(cell *, cell *, unsigned int, unsigned int)
 ) {
     MPI_Irecv(recv, halo_len, MPI_CHAR, target, MPI_ANY_TAG, comm, recv_req);
-    copy_halo(pop, send, height, width, pos);
+    copy_halo_fn_ptr(pop, send, height, width);
     MPI_Issend(send, halo_len, MPI_CHAR, target, 0, comm, send_req);
 }
 
 
-void swap_halos(cell *pop, SwapBuffer *buf, Process *ps, MPI_Comm comm) {
-    swap_halo(pop, buf->up_recv, buf->up_send, buf->halo_width, ps->height, ps->width, ps->neighbours.up,
-              &(buf->recv_buf[UP]), &(buf->send_buf[UP]), comm, UP);
-    swap_halo(pop, buf->left_recv, buf->left_send, buf->halo_height, ps->height, ps->width, ps->neighbours.left,
-              &(buf->recv_buf[LEFT]), &(buf->send_buf[LEFT]), comm, LEFT);
-    swap_halo(pop, buf->down_recv, buf->down_send, buf->halo_width, ps->height, ps->width, ps->neighbours.down,
-              &(buf->recv_buf[DOWN]), &(buf->send_buf[DOWN]), comm, DOWN);
-    swap_halo(pop, buf->right_recv, buf->right_send, buf->halo_height, ps->height, ps->width,
-              ps->neighbours.right, &(buf->recv_buf[RIGHT]), &(buf->send_buf[RIGHT]), comm, RIGHT);
+void swap_halos(cell *pop, SwapBuffer *buf, SimulationData *sim) {
+    // Swap upper halos.
+    swap_halo(
+            pop,
+            buf->up_recv,
+            buf->up_send,
+            buf->halo_width,
+            sim->local_augmented_height,
+            sim->local_augmented_width,
+            sim->upper_neighbour,
+            &(buf->recv_buf[UP]),
+            &(buf->send_buf[UP]),
+            sim->comm,
+            &copy_upper_halo
+    );
+    // Swap left halos.
+    swap_halo(
+            pop,
+            buf->left_recv,
+            buf->left_send,
+            buf->halo_height,
+            sim->local_augmented_height,
+            sim->local_augmented_width,
+            sim->left_neighbour,
+            &(buf->recv_buf[LEFT]),
+            &(buf->send_buf[LEFT]),
+            sim->comm,
+            &copy_left_halo
+    );
+    // Swap lower halos.
+    swap_halo(
+            pop,
+            buf->down_recv,
+            buf->down_send,
+            buf->halo_width,
+            sim->local_augmented_height,
+            sim->local_augmented_width,
+            sim->lower_neighbour,
+            &(buf->recv_buf[DOWN]),
+            &(buf->send_buf[DOWN]),
+            sim->comm,
+            &copy_lower_halo
+    );
+    swap_halo(
+            pop,
+            buf->right_recv,
+            buf->right_send,
+            buf->halo_height,
+            sim->local_augmented_height,
+            sim->local_augmented_width,
+            sim->right_neighbour,
+            &(buf->recv_buf[RIGHT]),
+            &(buf->send_buf[RIGHT]),
+            sim->comm,
+            &copy_right_halo
+    );
 
     MPI_Waitall(4, buf->recv_buf, buf->recv_status_buf);    // Receive.
     MPI_Waitall(4, buf->send_buf, buf->send_status_buf);    // Send.
 
-    insert_halo(pop, buf->left_recv, ps->height, ps->width, buf->halo_height, LEFT);
-    insert_halo(pop, buf->right_recv, ps->height, ps->width, buf->halo_height, RIGHT);
-    insert_halo(pop, buf->up_recv, ps->height, ps->width, buf->halo_width, UP);
-    insert_halo(pop, buf->down_recv, ps->height, ps->width, buf->halo_width, DOWN);
+    // Insert halos.
+    insert_left_halo(pop, buf->left_recv, sim->local_augmented_width, buf->halo_height);
+    insert_right_halo(pop, buf->left_recv, sim->local_augmented_width, buf->halo_height);
+    insert_upper_halo(pop, buf->left_recv, sim->local_augmented_width, buf->halo_height);
+    insert_lower_halo(pop, buf->left_recv, sim->local_augmented_height, sim->local_augmented_width, buf->halo_height);
+}
+
+static inline bool
+
+check_lower_threshold(unsigned long long live_cells, unsigned long long lower_threshold) {
+    return live_cells < lower_threshold;
+}
+
+
+static inline bool
+
+check_upper_threshold(unsigned long long live_cells, unsigned long long upper_threshold) {
+    return live_cells > upper_threshold;
+}
+
+
+static inline void print_worker_data(SimulationData *sim) {
+    printf("Process at rank %d has shape [%d, %d] at coordinates (%d, %d)\n", sim->rank, sim->local_height,
+           sim->local_width, sim->x_coordinate, sim->y_coordinate);
+}
+
+
+static inline void print_simulation_data(SimulationData *sim) {
+    printf("Running on %d process(es) with seed equal to %d. Grid has %d rows and %d columns. Height of the simulation is %d and width is %d. Simulation will stop if the number of live cells drops below %llu or exceeds %llu\n",
+           sim->n_proc, sim->args->seed, sim->rows, sim->cols, sim->args->height, sim->args->width,
+           sim->lower_early_stopping_threshold,
+           sim->upper_early_stopping_threshold);
+}
+
+
+static inline void print_interval_data(unsigned int step, unsigned long long global_live_cell_count) {
+    printf("automaton: number of live cells on step %d is %llu\n", step, global_live_cell_count);
+}
+
+static inline void print_on_lower_threshold_touch() {
+    printf("Global cell count dropped below lower threshold\n");
+}
+
+
+static inline void print_on_upper_threshold_touch() {
+    printf("Global cell count exceeded upper threshold\n");
+}
+
+
+void run_controller(SimulationData *sim, cell *fst_generation, cell *snd_generation) {
+    unsigned long long local_live_cell_count, global_live_cell_count;
+    cell * tmp_generation;
+
+    print_worker_data(sim);
+
+    for (unsigned int i = 0; i < sim->args->max_steps; i++) {
+        // Check if running on a single process to avoid deadlock.
+        if (sim->n_proc > 1) {
+            swap_halos(fst_generation, sim->swap_buffer, sim);
+        }
+
+        // Compute next generation.
+        local_live_cell_count = update_population(
+                fst_generation, snd_generation, sim->local_augmented_height, sim->local_augmented_width);
+
+        // Swap generations.
+        tmp_generation = fst_generation;
+        fst_generation = snd_generation;
+        snd_generation = tmp_generation;
+
+        MPI_Allreduce(&local_live_cell_count, &global_live_cell_count, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, sim->comm);
+
+        if (i % sim->args->print_interval == 0) {
+            print_interval_data(i, global_live_cell_count);
+        }
+
+        if (check_lower_threshold(global_live_cell_count, sim->lower_early_stopping_threshold)) {
+            print_on_lower_threshold_touch();
+            break;
+        }
+
+        if (check_upper_threshold(global_live_cell_count, sim->upper_early_stopping_threshold)) {
+            print_on_upper_threshold_touch();
+            break;
+        }
+    }
+}
+
+
+void run_worker(SimulationData *sim, cell *fst_generation, cell *snd_generation) {
+    unsigned long long local_live_cell_count, global_live_cell_count;
+    cell * tmp_generation;
+
+    print_worker_data(sim);
+
+    for (unsigned int i = 0; i < sim->args->max_steps; i++) {
+        swap_halos(fst_generation, sim->swap_buffer, sim);
+
+        // Compute next generation.
+        local_live_cell_count = update_population(
+                fst_generation, snd_generation, sim->local_augmented_height, sim->local_augmented_width);
+
+        // Swap generations.
+        tmp_generation = fst_generation;
+        fst_generation = snd_generation;
+        snd_generation = tmp_generation;
+
+        MPI_Allreduce(&local_live_cell_count, &global_live_cell_count, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, sim->comm);
+
+        if (check_lower_threshold(global_live_cell_count, sim->lower_early_stopping_threshold)) {
+            break;
+        }
+
+        if (check_upper_threshold(global_live_cell_count, sim->upper_early_stopping_threshold)) {
+            break;
+        }
+    }
 }
 
 
 int main(int argc, char *argv[]) {
     MPI_Init(NULL, NULL);
 
+    unsigned int seed;
+    unsigned long long local_live_cell_count, initial_live_cell_count;
+
     Arguments args = parse_args(argc, argv);
+    SimulationData simulation = init_simulation_data(&args);
 
-    int rank, seed, population_size, tally, global_tally = 0;
-
-    Grid grid = get_grid(MPI_COMM_WORLD, args.n_proc, args.height, args.width);
-    MPI_Comm_rank(grid.comm, &rank);
-
-    int *seeds = random_seeds(args.seed, args.n_proc);
-    MPI_Scatter(seeds, 1, MPI_INT, &seed, 1, MPI_INT, CONTROLLER_RANK, grid.comm);
-
-    Process process = get_process_data(grid, rank, seed);
-
-    if (rank == CONTROLLER_RANK) {
-        printf("Topology: (%d,%d)\n", grid.rows, grid.columns);
-    }
-
-    print_process_data(process);
-
-    // ------
-    population_size = process.height * process.width * sizeof(int);
-
-    cell * before = malloc(population_size);
-    cell * after = malloc(population_size);
-    cell * tmp = NULL;
-
-    double ratio;
+    // Scatter seeds and initialize random number generator.
+    unsigned int *seeds = random_seeds(args.seed, simulation.n_proc);
+    MPI_Scatter(seeds, 1, MPI_INT, &seed, 1, MPI_UNSIGNED, CONTROLLER_RANK, simulation.comm);
 
     srand(seed);
 
-    before = random_augmented_population(process.height, process.width, args.prob);
+    // Initialize local population of cells.
+    cell * fst_generation = malloc(simulation.local_augmented_height * simulation.local_augmented_width * sizeof(cell));
+    cell * snd_generation = malloc(simulation.local_augmented_height * simulation.local_augmented_width * sizeof(cell));
+    local_live_cell_count = random_augmented_population(
+            fst_generation,
+            simulation.local_augmented_height,
+            simulation.local_augmented_width,
+            args.prob
+    );
 
-    SwapBuffer *swap_buffer = new_swap_buffer(process.height - 2, process.width - 2);
+    // Reduce local live cell counts into a global live cell count.
+    MPI_Allreduce(&local_live_cell_count, &initial_live_cell_count, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM,
+                  simulation.comm);
 
-    MPI_Status *tally_status;
-    MPI_Request *tally_request;
+    // Compute early stopping thresholds.
+    simulation.lower_early_stopping_threshold = initial_live_cell_count * LOWER_THRESHOLD_RATIO;;
+    simulation.upper_early_stopping_threshold = initial_live_cell_count * UPPER_THRESHOLD_RATIO;
 
-    if (rank == CONTROLLER_RANK) {
-        for (unsigned int i = 0; i < args.max_steps; i++) {
-            swap_halos(before, swap_buffer, &process, grid.comm);
-            tally = update_population(before, after, process.height, process.width);
-
-            tmp = before;
-            before = after;
-            after = tmp;
-
-            MPI_Reduce(&tally, &global_tally, 1, MPI_INT, MPI_SUM, CONTROLLER_RANK, grid.comm);
-
-            ratio = global_tally / (double) (args.height * args.width);
-
-            if (i % args.print_interval == 0) {
-                printf("rank: %d, step: %d, cells_alive: %d, ratio: %.4f\n", rank, i, global_tally, ratio);
-            }
-        }
+    if (simulation.rank == CONTROLLER_RANK) {
+        print_simulation_data(&simulation);
+        run_controller(&simulation, fst_generation, snd_generation);
     } else {
-        for (unsigned int i = 0; i < args.max_steps; i++) {
-            swap_halos(before, swap_buffer, &process, grid.comm);
-            tally = update_population(before, after, process.height, process.width);
-
-            tmp = before;
-            before = after;
-            after = tmp;
-
-            MPI_Reduce(&tally, &global_tally, 1, MPI_INT, MPI_SUM, CONTROLLER_RANK, grid.comm);
-        }
+        run_worker(&simulation, fst_generation, snd_generation);
     }
 
+
+    // Free resources.
+    free(seeds);
+    free(fst_generation);
+    free(snd_generation);
+
+    free_swap_buffer(simulation.swap_buffer);
+    free(simulation.swap_buffer);
 
     MPI_Finalize();
 

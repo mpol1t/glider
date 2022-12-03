@@ -49,21 +49,20 @@ void insert_row(cell *mat, cell *col, unsigned int width, unsigned int len, unsi
     }
 }
 
-void insert_halo(cell *mat, cell *halo, unsigned int height, unsigned int width, unsigned int len, int pos) {
-    switch (pos) {
-        case UP:
-            insert_row(mat, halo, width, len, 0, 1);
-            break;
-        case DOWN:
-            insert_row(mat, halo, width, len, height - 1, 1);
-            break;
-        case LEFT:
-            insert_column(mat, halo, width, len, 0, 1);
-            break;
-        case RIGHT:
-            insert_column(mat, halo, width, len, width - 1, 1);
-            break;
-    }
+void insert_upper_halo(cell *mat, cell *halo, unsigned int width, unsigned int len) {
+    insert_row(mat, halo, width, len, 0, 1);
+}
+
+void insert_lower_halo(cell *mat, cell *halo, unsigned int height, unsigned int width, unsigned int len) {
+    insert_row(mat, halo, width, len, height - 1, 1);
+}
+
+void insert_left_halo(cell *mat, cell *halo, unsigned int width, unsigned int len) {
+    insert_column(mat, halo, width, len, 0, 1);
+}
+
+void insert_right_halo(cell *mat, cell *halo, unsigned int width, unsigned int len) {
+    insert_column(mat, halo, width, len, width - 1, 1);
 }
 
 /**
@@ -100,22 +99,40 @@ void copy_row(cell *mat, cell *row, unsigned int width, unsigned int len, unsign
     }
 }
 
-void copy_halo(cell *mat, cell *buf, unsigned int height, unsigned width, int pos) {
-    switch (pos) {
-        case UP:
-            copy_row(mat, buf, width, width - 2, 1, 1);
-            break;
-        case DOWN:
-            copy_row(mat, buf, width, width - 2, height - 2, 1);
-            break;
-        case LEFT:
-            copy_column(mat, buf, width, height - 2, 1, 1);
-            break;
-        case RIGHT:
-            copy_column(mat, buf, width, height - 2, width - 2, 1);
-            break;
-    }
+void copy_upper_halo(cell *mat, cell *buf, unsigned int height, unsigned width) {
+    copy_row(mat, buf, width, width - 2, 1, 1);
 }
+
+void copy_lower_halo(cell *mat, cell *buf, unsigned int height, unsigned width) {
+    copy_row(mat, buf, width, width - 2, height - 2, 1);
+}
+
+void copy_left_halo(cell *mat, cell *buf, unsigned int height, unsigned width) {
+    copy_column(mat, buf, width, height - 2, 1, 1);
+}
+
+void copy_right_halo(cell *mat, cell *buf, unsigned int height, unsigned width) {
+    copy_column(mat, buf, width, height - 2, width - 2, 1);
+}
+
+
+//
+//void copy_halo(cell *mat, cell *buf, unsigned int height, unsigned width, int pos) {
+//    switch (pos) {
+//        case UP:
+//            copy_row(mat, buf, width, width - 2, 1, 1);
+//            break;
+//        case DOWN:
+//            copy_row(mat, buf, width, width - 2, height - 2, 1);
+//            break;
+//        case LEFT:
+//            copy_column(mat, buf, width, height - 2, 1, 1);
+//            break;
+//        case RIGHT:
+//            copy_column(mat, buf, width, height - 2, width - 2, 1);
+//            break;
+//    }
+//}
 
 /**
  * Returns cell's next state given the sum of cell's value and it's nearest neighbours.
@@ -217,8 +234,8 @@ static inline cell fuzzer(float p) {
  * @param p         Probability of a cell being alive.
  * @return          Total number of live cells.
  */
-unsigned int randomize_augmented_population(cell *mat, unsigned int height, unsigned int width, float p) {
-    unsigned int alive = 0;
+unsigned long long randomize_augmented_population(cell *mat, unsigned int height, unsigned int width, float p) {
+    unsigned long long alive = 0;
 
     for (unsigned int i = 1; i < height - 1; i++) {
         for (unsigned int j = 1; j < width - 1; j++) {
@@ -238,13 +255,14 @@ unsigned int randomize_augmented_population(cell *mat, unsigned int height, unsi
  * @param p         Probability of a cell being alive.
  * @return          Pointer representing augmented population of cells.
  */
-cell *random_augmented_population(unsigned int height, unsigned int width, float p) {
-    cell *population = malloc((height + 2) * (width + 2) * sizeof(cell));
+unsigned long long random_augmented_population(cell *buf, unsigned int height, unsigned int width, float p) {
+//    cell *population = malloc((height + 2) * (width + 2) * sizeof(cell));
 
-    randomize_augmented_population(population, height, width, p);
-    reset_halos(population, height, width);
+    unsigned long long live_cell_count = randomize_augmented_population(buf, height, width, p);
+    // TODO: Fix me!
+//    reset_halos(buf, height, width);
 
-    return population;
+    return live_cell_count;
 }
 
 #endif //MPP_AUTOMATON_POPULATION_UTILS_H
