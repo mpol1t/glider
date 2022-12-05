@@ -68,6 +68,8 @@ typedef struct {
     unsigned int rows;
     unsigned int cols;
 
+    int global_seed;
+
     unsigned long long lower_early_stopping_threshold;
     unsigned long long upper_early_stopping_threshold;
 
@@ -78,6 +80,8 @@ typedef struct {
     int right_neighbour;
     int upper_neighbour;
     int lower_neighbour;
+
+    int local_seed;
 
     unsigned int x_coordinate;
     unsigned int y_coordinate;
@@ -152,8 +156,8 @@ SimulationData init_simulation_data(Arguments *args) {
     MPI_Cart_coords(topology, rank, 2, coordinates);
 
     // Compute population shape.
-    local_width = get_chunk_size(args->width, coordinates[1], shape[1]);
-    local_height = get_chunk_size(args->height, coordinates[0], shape[0]);
+    local_width = get_chunk_size(args->length, coordinates[1], shape[1]);
+    local_height = get_chunk_size(args->length, coordinates[0], shape[0]);
 
     local_augmented_width = local_width + 2;
     local_augmented_height = local_height + 2;
@@ -167,6 +171,7 @@ SimulationData init_simulation_data(Arguments *args) {
             .rows                           = shape[0],
             .cols                           = shape[1],
             .n_proc                         = n_proc,
+            .global_seed                    = args->seed,
             .swap_buffer                    = swap_buffer,
             .x_coordinate                   = coordinates[0],
             .y_coordinate                   = coordinates[1],
@@ -184,16 +189,12 @@ SimulationData init_simulation_data(Arguments *args) {
 }
 
 
-unsigned int *random_seeds(int seed, int n) {
-    int *seeds = malloc(n * sizeof(int));
-
+void init_seeds(int seed, int n, int *seeds) {
     srand(seed);
 
     for (int i = 0; i < n; i++) {
         seeds[i] = rand();
     }
-
-    return seeds;
 }
 
 
@@ -220,13 +221,13 @@ void swap_halos(cell *pop, SwapBuffer *buf, SimulationData *sim) {
     // Swap upper halos.
     swap_halo(
             pop,
-            buf->up_recv,
+            buf->down_recv,
             buf->up_send,
             buf->halo_width,
             sim->local_augmented_height,
             sim->local_augmented_width,
             sim->upper_neighbour,
-            &(buf->recv_buf[UP]),
+            &(buf->recv_buf[DOWN]),
             &(buf->send_buf[UP]),
             sim->comm,
             &copy_upper_halo
@@ -234,13 +235,13 @@ void swap_halos(cell *pop, SwapBuffer *buf, SimulationData *sim) {
     // Swap left halos.
     swap_halo(
             pop,
-            buf->left_recv,
+            buf->right_recv,
             buf->left_send,
             buf->halo_height,
             sim->local_augmented_height,
             sim->local_augmented_width,
             sim->left_neighbour,
-            &(buf->recv_buf[LEFT]),
+            &(buf->recv_buf[RIGHT]),
             &(buf->send_buf[LEFT]),
             sim->comm,
             &copy_left_halo
@@ -248,26 +249,26 @@ void swap_halos(cell *pop, SwapBuffer *buf, SimulationData *sim) {
     // Swap lower halos.
     swap_halo(
             pop,
-            buf->down_recv,
+            buf->up_recv,
             buf->down_send,
             buf->halo_width,
             sim->local_augmented_height,
             sim->local_augmented_width,
             sim->lower_neighbour,
-            &(buf->recv_buf[DOWN]),
+            &(buf->recv_buf[UP]),
             &(buf->send_buf[DOWN]),
             sim->comm,
             &copy_lower_halo
     );
     swap_halo(
             pop,
-            buf->right_recv,
+            buf->left_recv,
             buf->right_send,
             buf->halo_height,
             sim->local_augmented_height,
             sim->local_augmented_width,
             sim->right_neighbour,
-            &(buf->recv_buf[RIGHT]),
+            &(buf->recv_buf[LEFT]),
             &(buf->send_buf[RIGHT]),
             sim->comm,
             &copy_right_halo
@@ -278,9 +279,9 @@ void swap_halos(cell *pop, SwapBuffer *buf, SimulationData *sim) {
 
     // Insert halos.
     insert_left_halo(pop, buf->left_recv, sim->local_augmented_width, buf->halo_height);
-    insert_right_halo(pop, buf->left_recv, sim->local_augmented_width, buf->halo_height);
-    insert_upper_halo(pop, buf->left_recv, sim->local_augmented_width, buf->halo_height);
-    insert_lower_halo(pop, buf->left_recv, sim->local_augmented_height, sim->local_augmented_width, buf->halo_height);
+    insert_right_halo(pop, buf->right_recv, sim->local_augmented_width, buf->halo_height);
+    insert_upper_halo(pop, buf->up_recv, sim->local_augmented_width, buf->halo_height);
+    insert_lower_halo(pop, buf->down_recv, sim->local_augmented_height, sim->local_augmented_width, buf->halo_height);
 }
 
 static inline bool
@@ -298,16 +299,15 @@ check_upper_threshold(unsigned long long live_cells, unsigned long long upper_th
 
 
 static inline void print_worker_data(SimulationData *sim) {
-    printf("Process at rank %d has shape [%d, %d] at coordinates (%d, %d)\n", sim->rank, sim->local_height,
-           sim->local_width, sim->x_coordinate, sim->y_coordinate);
+    printf("automaton: rank = %d, shape = [%d, %d], coordinates = (%d, %d), seed = %u\n", sim->rank,
+           sim->local_height,
+           sim->local_width, sim->x_coordinate, sim->y_coordinate, sim->local_seed);
 }
 
 
 static inline void print_simulation_data(SimulationData *sim) {
-    printf("Running on %d process(es) with seed equal to %d. Grid has %d rows and %d columns. Height of the simulation is %d and width is %d. Simulation will stop if the number of live cells drops below %llu or exceeds %llu\n",
-           sim->n_proc, sim->args->seed, sim->rows, sim->cols, sim->args->height, sim->args->width,
-           sim->lower_early_stopping_threshold,
-           sim->upper_early_stopping_threshold);
+    printf("automaton: L = %d, rho = %.5f, seed = %d, maxstep = %d\n", sim->args->length, sim->args->prob,
+           sim->local_seed, sim->args->max_steps);
 }
 
 
@@ -315,13 +315,14 @@ static inline void print_interval_data(unsigned int step, unsigned long long glo
     printf("automaton: number of live cells on step %d is %llu\n", step, global_live_cell_count);
 }
 
+
 static inline void print_on_lower_threshold_touch() {
-    printf("Global cell count dropped below lower threshold\n");
+    printf("automaton: global cell count dropped below lower threshold\n");
 }
 
 
 static inline void print_on_upper_threshold_touch() {
-    printf("Global cell count exceeded upper threshold\n");
+    printf("automaton: global cell count exceeded upper threshold\n");
 }
 
 
@@ -399,17 +400,28 @@ void run_worker(SimulationData *sim, cell *fst_generation, cell *snd_generation)
 int main(int argc, char *argv[]) {
     MPI_Init(NULL, NULL);
 
-    unsigned int seed;
     unsigned long long local_live_cell_count, initial_live_cell_count;
 
     Arguments args = parse_args(argc, argv);
     SimulationData simulation = init_simulation_data(&args);
 
-    // Scatter seeds and initialize random number generator.
-    unsigned int *seeds = random_seeds(args.seed, simulation.n_proc);
-    MPI_Scatter(seeds, 1, MPI_INT, &seed, 1, MPI_UNSIGNED, CONTROLLER_RANK, simulation.comm);
+    if (simulation.rank == CONTROLLER_RANK) {
+        print_simulation_data(&simulation);
+    }
 
-    srand(seed);
+    int *seeds = malloc(simulation.n_proc * sizeof(int));
+
+    // Generate seeds.
+    if (simulation.n_proc > 1) {
+        init_seeds(args.seed, simulation.n_proc, seeds);
+
+        // Initialize local random number generator.
+        simulation.local_seed = seeds[simulation.rank];
+    } else {
+        simulation.local_seed = args.seed;
+    }
+
+    srand(simulation.local_seed);
 
     // Initialize local population of cells.
     cell * fst_generation = malloc(simulation.local_augmented_height * simulation.local_augmented_width * sizeof(cell));
@@ -425,19 +437,28 @@ int main(int argc, char *argv[]) {
     MPI_Allreduce(&local_live_cell_count, &initial_live_cell_count, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM,
                   simulation.comm);
 
+    if (simulation.rank == CONTROLLER_RANK) {
+        printf("automaton: rho = %.5f, live cells = %llu, actual density = %.5f\n", args.prob, initial_live_cell_count,
+               (double) initial_live_cell_count / (double) (args.length * args.length));
+    }
+
     // Compute early stopping thresholds.
     simulation.lower_early_stopping_threshold = initial_live_cell_count * LOWER_THRESHOLD_RATIO;;
     simulation.upper_early_stopping_threshold = initial_live_cell_count * UPPER_THRESHOLD_RATIO;
 
     if (simulation.rank == CONTROLLER_RANK) {
-        print_simulation_data(&simulation);
         run_controller(&simulation, fst_generation, snd_generation);
     } else {
         run_worker(&simulation, fst_generation, snd_generation);
     }
 
-    to_pbm("cell.pbm", fst_generation, simulation.local_augmented_height, simulation.local_augmented_width);
+    if (args.write_to_file) {
+        char filename[100];
 
+        snprintf(filename, 100, "cell_%d_%d.pbm", simulation.x_coordinate, simulation.y_coordinate);
+
+        to_pbm(filename, fst_generation, simulation.local_augmented_height, simulation.local_augmented_width);
+    }
 
     // Free resources.
     free(seeds);

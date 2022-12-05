@@ -1,5 +1,5 @@
-#ifndef MPP_AUTOMATON_POPIO_H
-#define MPP_AUTOMATON_POPIO_H
+#ifndef MPP_AUTOMATON_IO_H
+#define MPP_AUTOMATON_IO_H
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -15,12 +15,12 @@ void to_pbm(char *filename, char *population, unsigned int height, unsigned int 
     file = fopen(filename, "w");
 
     fprintf(file, "P1\n");
-    fprintf(file, "%d %d\n", width, height);
+    fprintf(file, "%d %d\n", width - 2, height - 2);
 
     cursor = 0;
 
-    for (unsigned int i = 0; i < height; i++) {
-        for (unsigned int j = 0; j < width; j++) {
+    for (unsigned int i = 1; i < height - 1; i++) {
+        for (unsigned int j = 1; j < width - 1; j++) {
             cursor++;
 
             value = 1;
@@ -48,4 +48,4 @@ void to_pbm(char *filename, char *population, unsigned int height, unsigned int 
 }
 
 
-#endif //MPP_AUTOMATON_POPIO_H
+#endif //MPP_AUTOMATON_IO_H

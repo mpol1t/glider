@@ -192,16 +192,16 @@ unsigned int update_population(cell *mat, cell *buf, unsigned int height, unsign
 void reset_halos(cell *mat, unsigned int height, unsigned int width) {
     unsigned int i;
 
-    // Reset columns.
-    for (i = 1; i < height - 1; i++) {
-        mat[i * width] = 0;
-        mat[i * width + width - 1] = 0;
+    // Reset columns
+    for (i = 0; i < height; i++) {
+        mat[i * width] = 0;                 // First column
+        mat[i * width + width - 1] = 0;     // Last column
     }
 
-    // Reset rows.
-    for (i = 1; i < width - 1; i++) {
-        mat[i] = 0;
-        mat[(width - 1) * width + i] = 0;
+    // Reset rows
+    for (i = 0; i < width; i++) {
+        mat[i] = 0;                 // First row
+        mat[(height - 1) * width + i] = 0;                  // Last row
     }
 }
 
@@ -259,8 +259,7 @@ unsigned long long random_augmented_population(cell *buf, unsigned int height, u
 //    cell *population = malloc((height + 2) * (width + 2) * sizeof(cell));
 
     unsigned long long live_cell_count = randomize_augmented_population(buf, height, width, p);
-    // TODO: Fix me!
-//    reset_halos(buf, height, width);
+    reset_halos(buf, height, width);
 
     return live_cell_count;
 }
