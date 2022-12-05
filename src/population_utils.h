@@ -12,8 +12,12 @@
 #define LEFT 3
 
 
-/// cell type represents individual cell in the population.
+/**
+ * Cell type definition.
+ */
+#define MPI_CELL MPI_CHAR
 typedef char cell;
+
 
 /**
  * Inserts column into 2D array in-place using offset. Unsafe - results in segmentation fault if insertion index falls
@@ -49,18 +53,51 @@ void insert_row(cell *mat, cell *col, unsigned int width, unsigned int len, unsi
     }
 }
 
+/**
+ *
+ *
+ * @param mat
+ * @param halo
+ * @param width
+ * @param len
+ */
 void insert_upper_halo(cell *mat, cell *halo, unsigned int width, unsigned int len) {
     insert_row(mat, halo, width, len, 0, 1);
 }
 
+/**
+ *
+ *
+ * @param mat
+ * @param halo
+ * @param height
+ * @param width
+ * @param len
+ */
 void insert_lower_halo(cell *mat, cell *halo, unsigned int height, unsigned int width, unsigned int len) {
     insert_row(mat, halo, width, len, height - 1, 1);
 }
 
+/**
+ *
+ *
+ * @param mat
+ * @param halo
+ * @param width
+ * @param len
+ */
 void insert_left_halo(cell *mat, cell *halo, unsigned int width, unsigned int len) {
     insert_column(mat, halo, width, len, 0, 1);
 }
 
+/**
+ *
+ *
+ * @param mat
+ * @param halo
+ * @param width
+ * @param len
+ */
 void insert_right_halo(cell *mat, cell *halo, unsigned int width, unsigned int len) {
     insert_column(mat, halo, width, len, width - 1, 1);
 }
@@ -99,40 +136,52 @@ void copy_row(cell *mat, cell *row, unsigned int width, unsigned int len, unsign
     }
 }
 
+/**
+ *
+ *
+ * @param mat
+ * @param buf
+ * @param height
+ * @param width
+ */
 void copy_upper_halo(cell *mat, cell *buf, unsigned int height, unsigned width) {
     copy_row(mat, buf, width, width - 2, 1, 1);
 }
 
+/**
+ *
+ * @param mat
+ * @param buf
+ * @param height
+ * @param width
+ */
 void copy_lower_halo(cell *mat, cell *buf, unsigned int height, unsigned width) {
     copy_row(mat, buf, width, width - 2, height - 2, 1);
 }
 
+/**
+ *
+ *
+ * @param mat
+ * @param buf
+ * @param height
+ * @param width
+ */
 void copy_left_halo(cell *mat, cell *buf, unsigned int height, unsigned width) {
     copy_column(mat, buf, width, height - 2, 1, 1);
 }
 
+/**
+ *
+ *
+ * @param mat
+ * @param buf
+ * @param height
+ * @param width
+ */
 void copy_right_halo(cell *mat, cell *buf, unsigned int height, unsigned width) {
     copy_column(mat, buf, width, height - 2, width - 2, 1);
 }
-
-
-//
-//void copy_halo(cell *mat, cell *buf, unsigned int height, unsigned width, int pos) {
-//    switch (pos) {
-//        case UP:
-//            copy_row(mat, buf, width, width - 2, 1, 1);
-//            break;
-//        case DOWN:
-//            copy_row(mat, buf, width, width - 2, height - 2, 1);
-//            break;
-//        case LEFT:
-//            copy_column(mat, buf, width, height - 2, 1, 1);
-//            break;
-//        case RIGHT:
-//            copy_column(mat, buf, width, height - 2, width - 2, 1);
-//            break;
-//    }
-//}
 
 /**
  * Returns cell's next state given the sum of cell's value and it's nearest neighbours.
@@ -140,7 +189,7 @@ void copy_right_halo(cell *mat, cell *buf, unsigned int height, unsigned width) 
  * @param sum   Sum of nearest neighbours.
  * @return      Next state.
  */
-cell update_cell(cell sum) {
+inline cell mpp_update_cell(cell sum) {
     return (sum == 2 || sum == 4 || sum == 5) ? 1 : 0;
 }
 
@@ -153,7 +202,7 @@ cell update_cell(cell sum) {
  * @param w     Row width.
  * @return      Sum of cell's value and its nearest neighbours.
  */
-static inline cell compute_state_sum(cell *mat, unsigned int i, unsigned int j, unsigned int w) {
+inline cell mpp_compute_state_sum(cell *mat, unsigned int i, unsigned int j, unsigned int w) {
     return mat[i * w + j] + mat[i * w + j - 1] + mat[i * w + j + 1] + mat[(i - 1) * w + j] + mat[(i + 1) * w + j];
 }
 
@@ -167,13 +216,20 @@ static inline cell compute_state_sum(cell *mat, unsigned int i, unsigned int j, 
  * @param width     Width of the augmented population.
  * @return          Number of live cells in the next time step.
  */
-unsigned int update_population(cell *mat, cell *buf, unsigned int height, unsigned int width) {
+unsigned int update_population(
+        cell *mat,
+        cell *buf,
+        unsigned int height,
+        unsigned int width,
+        cell (*update_fn_ptr)(cell),
+        cell (*state_fn_ptr)(cell *, unsigned int, unsigned int, unsigned int)
+) {
     unsigned int tally = 0;
     cell next_state;
 
     for (unsigned int i = 1; i < height - 1; i++) {
         for (unsigned int j = 1; j < width - 1; j++) {
-            next_state = update_cell(compute_state_sum(mat, i, j, width));
+            next_state = update_fn_ptr(state_fn_ptr(mat, i, j, width));
             tally += next_state;
             buf[i * width + j] = next_state;
         }
@@ -189,19 +245,19 @@ unsigned int update_population(cell *mat, cell *buf, unsigned int height, unsign
  * @param height    Height of the population.
  * @param width     Width of the population.
  */
-void reset_halos(cell *mat, unsigned int height, unsigned int width) {
+void reset_halos(cell *pop, unsigned int height, unsigned int width) {
     unsigned int i;
 
     // Reset columns
     for (i = 0; i < height; i++) {
-        mat[i * width] = 0;                 // First column
-        mat[i * width + width - 1] = 0;     // Last column
+        pop[i * width] = 0;                 // First column
+        pop[i * width + width - 1] = 0;     // Last column
     }
 
     // Reset rows
     for (i = 0; i < width; i++) {
-        mat[i] = 0;                 // First row
-        mat[(height - 1) * width + i] = 0;                  // Last row
+        pop[i] = 0;                 // First row
+        pop[(height - 1) * width + i] = 0;                  // Last row
     }
 }
 

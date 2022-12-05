@@ -4,10 +4,20 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "population_utils.h"
+
 #define PIXELS_PER_LINE 32
 
 
-void to_pbm(char *filename, char *population, unsigned int height, unsigned int width) {
+/**
+ *
+ *
+ * @param filename
+ * @param population
+ * @param height
+ * @param width
+ */
+void to_pbm(char *filename, cell *population, unsigned int height, unsigned int width) {
     FILE *file;
 
     int cursor, value;
