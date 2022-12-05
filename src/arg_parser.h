@@ -17,7 +17,7 @@
 
 const char *argp_program_version = "automaton 0.0.1";
 const char *argp_program_bug_address = "s1548787@sms.ed.ac.uk";
-static char doc[] = "Blah blah blah...";
+static char doc[] = "MPI-based distributed 2D automaton.";
 static char args_doc[] = "[SEED]...";
 
 static struct argp_option options[] = {
@@ -25,7 +25,7 @@ static struct argp_option options[] = {
         {"length",         'l', "NUM", 0, "Side length."},
         {"max_steps",      'm', "NUM", 0, "Maximum number of steps."},
         {"print_interval", 'i', "NUM", 0, "Number of steps between printing stats."},
-        {"write_to_file",  'w', "NUM", 0, "If true, saves output to cell.pbm."},
+        {"write_to_file",  'w', "NUM", 0, "If 1, saves output to cell.pbm."},
         {0}
 };
 

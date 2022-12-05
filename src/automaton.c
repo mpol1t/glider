@@ -166,6 +166,7 @@ int main(int argc, char *argv[]) {
 
         snprintf(filename, 100, "cell_%d_%d.pbm", simulation.x_coordinate, simulation.y_coordinate);
 
+        printf("automaton: rank %d is saving data to file...\n", simulation.rank);
         to_pbm(filename, fst_generation, simulation.local_augmented_height, simulation.local_augmented_width);
     }
 

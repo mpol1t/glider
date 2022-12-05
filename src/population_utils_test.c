@@ -14,44 +14,44 @@
  *
  */
 void TESTCASE_update_cell_alive() {
-    assert(update_cell(DEAD + DEAD + DEAD + ALIVE + ALIVE) == ALIVE);
-    assert(update_cell(DEAD + DEAD + ALIVE + DEAD + ALIVE) == ALIVE);
-    assert(update_cell(DEAD + DEAD + ALIVE + ALIVE + DEAD) == ALIVE);
-    assert(update_cell(DEAD + ALIVE + DEAD + DEAD + ALIVE) == ALIVE);
-    assert(update_cell(DEAD + ALIVE + DEAD + ALIVE + DEAD) == ALIVE);
-    assert(update_cell(DEAD + ALIVE + ALIVE + DEAD + DEAD) == ALIVE);
-    assert(update_cell(DEAD + ALIVE + ALIVE + ALIVE + ALIVE) == ALIVE);
-    assert(update_cell(ALIVE + DEAD + DEAD + DEAD + ALIVE) == ALIVE);
-    assert(update_cell(ALIVE + DEAD + DEAD + ALIVE + DEAD) == ALIVE);
-    assert(update_cell(ALIVE + DEAD + ALIVE + DEAD + DEAD) == ALIVE);
-    assert(update_cell(ALIVE + DEAD + ALIVE + ALIVE + ALIVE) == ALIVE);
-    assert(update_cell(ALIVE + ALIVE + DEAD + DEAD + DEAD) == ALIVE);
-    assert(update_cell(ALIVE + ALIVE + DEAD + ALIVE + ALIVE) == ALIVE);
-    assert(update_cell(ALIVE + ALIVE + ALIVE + DEAD + ALIVE) == ALIVE);
-    assert(update_cell(ALIVE + ALIVE + ALIVE + ALIVE + DEAD) == ALIVE);
-    assert(update_cell(ALIVE + ALIVE + ALIVE + ALIVE + ALIVE) == ALIVE);
+    assert(mpp_update_cell(DEAD + DEAD + DEAD + ALIVE + ALIVE) == ALIVE);
+    assert(mpp_update_cell(DEAD + DEAD + ALIVE + DEAD + ALIVE) == ALIVE);
+    assert(mpp_update_cell(DEAD + DEAD + ALIVE + ALIVE + DEAD) == ALIVE);
+    assert(mpp_update_cell(DEAD + ALIVE + DEAD + DEAD + ALIVE) == ALIVE);
+    assert(mpp_update_cell(DEAD + ALIVE + DEAD + ALIVE + DEAD) == ALIVE);
+    assert(mpp_update_cell(DEAD + ALIVE + ALIVE + DEAD + DEAD) == ALIVE);
+    assert(mpp_update_cell(DEAD + ALIVE + ALIVE + ALIVE + ALIVE) == ALIVE);
+    assert(mpp_update_cell(ALIVE + DEAD + DEAD + DEAD + ALIVE) == ALIVE);
+    assert(mpp_update_cell(ALIVE + DEAD + DEAD + ALIVE + DEAD) == ALIVE);
+    assert(mpp_update_cell(ALIVE + DEAD + ALIVE + DEAD + DEAD) == ALIVE);
+    assert(mpp_update_cell(ALIVE + DEAD + ALIVE + ALIVE + ALIVE) == ALIVE);
+    assert(mpp_update_cell(ALIVE + ALIVE + DEAD + DEAD + DEAD) == ALIVE);
+    assert(mpp_update_cell(ALIVE + ALIVE + DEAD + ALIVE + ALIVE) == ALIVE);
+    assert(mpp_update_cell(ALIVE + ALIVE + ALIVE + DEAD + ALIVE) == ALIVE);
+    assert(mpp_update_cell(ALIVE + ALIVE + ALIVE + ALIVE + DEAD) == ALIVE);
+    assert(mpp_update_cell(ALIVE + ALIVE + ALIVE + ALIVE + ALIVE) == ALIVE);
 }
 
 /**
  *
  */
 void TESTCASE_update_cell_dead() {
-    assert(update_cell(DEAD + DEAD + DEAD + DEAD + DEAD) == DEAD);
-    assert(update_cell(DEAD + DEAD + DEAD + DEAD + ALIVE) == DEAD);
-    assert(update_cell(DEAD + DEAD + DEAD + ALIVE + DEAD) == DEAD);
-    assert(update_cell(DEAD + DEAD + ALIVE + DEAD + DEAD) == DEAD);
-    assert(update_cell(DEAD + DEAD + ALIVE + ALIVE + ALIVE) == DEAD);
-    assert(update_cell(DEAD + ALIVE + DEAD + DEAD + DEAD) == DEAD);
-    assert(update_cell(DEAD + ALIVE + DEAD + ALIVE + ALIVE) == DEAD);
-    assert(update_cell(DEAD + ALIVE + ALIVE + DEAD + ALIVE) == DEAD);
-    assert(update_cell(DEAD + ALIVE + ALIVE + ALIVE + DEAD) == DEAD);
-    assert(update_cell(ALIVE + DEAD + DEAD + DEAD + DEAD) == DEAD);
-    assert(update_cell(ALIVE + DEAD + DEAD + ALIVE + ALIVE) == DEAD);
-    assert(update_cell(ALIVE + DEAD + ALIVE + DEAD + ALIVE) == DEAD);
-    assert(update_cell(ALIVE + DEAD + ALIVE + ALIVE + DEAD) == DEAD);
-    assert(update_cell(ALIVE + ALIVE + DEAD + DEAD + ALIVE) == DEAD);
-    assert(update_cell(ALIVE + ALIVE + DEAD + ALIVE + DEAD) == DEAD);
-    assert(update_cell(ALIVE + ALIVE + ALIVE + DEAD + DEAD) == DEAD);
+    assert(mpp_update_cell(DEAD + DEAD + DEAD + DEAD + DEAD) == DEAD);
+    assert(mpp_update_cell(DEAD + DEAD + DEAD + DEAD + ALIVE) == DEAD);
+    assert(mpp_update_cell(DEAD + DEAD + DEAD + ALIVE + DEAD) == DEAD);
+    assert(mpp_update_cell(DEAD + DEAD + ALIVE + DEAD + DEAD) == DEAD);
+    assert(mpp_update_cell(DEAD + DEAD + ALIVE + ALIVE + ALIVE) == DEAD);
+    assert(mpp_update_cell(DEAD + ALIVE + DEAD + DEAD + DEAD) == DEAD);
+    assert(mpp_update_cell(DEAD + ALIVE + DEAD + ALIVE + ALIVE) == DEAD);
+    assert(mpp_update_cell(DEAD + ALIVE + ALIVE + DEAD + ALIVE) == DEAD);
+    assert(mpp_update_cell(DEAD + ALIVE + ALIVE + ALIVE + DEAD) == DEAD);
+    assert(mpp_update_cell(ALIVE + DEAD + DEAD + DEAD + DEAD) == DEAD);
+    assert(mpp_update_cell(ALIVE + DEAD + DEAD + ALIVE + ALIVE) == DEAD);
+    assert(mpp_update_cell(ALIVE + DEAD + ALIVE + DEAD + ALIVE) == DEAD);
+    assert(mpp_update_cell(ALIVE + DEAD + ALIVE + ALIVE + DEAD) == DEAD);
+    assert(mpp_update_cell(ALIVE + ALIVE + DEAD + DEAD + ALIVE) == DEAD);
+    assert(mpp_update_cell(ALIVE + ALIVE + DEAD + ALIVE + DEAD) == DEAD);
+    assert(mpp_update_cell(ALIVE + ALIVE + ALIVE + DEAD + DEAD) == DEAD);
 }
 
 /**
@@ -93,7 +93,7 @@ void TESTCASE_reset_halos() {
  */
 void TESTCASE_compute_state_sum_zero() {
     cell buf[9] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
-    assert(compute_state_sum(buf, 1, 1, 3) == 0);
+    assert(mpp_compute_state_sum(buf, 1, 1, 3) == 0);
 }
 
 /**
@@ -101,7 +101,7 @@ void TESTCASE_compute_state_sum_zero() {
  */
 void TESTCASE_compute_state_sum_five() {
     cell buf[9] = {0, 1, 0, 1, 1, 1, 0, 1, 0};
-    assert(compute_state_sum(buf, 1, 1, 3) == 5);
+    assert(mpp_compute_state_sum(buf, 1, 1, 3) == 5);
 }
 
 /**
