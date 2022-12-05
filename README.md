@@ -29,4 +29,4 @@ Report bugs to s1548787@sms.ed.ac.uk.
 
 For example, `mpirun -n 8 ./automaton -i 10 -l 1000 -m 10000 -w 1 333` will run the automaton using 8 processes and will print statistics every 10 iterations. Moreover, the side length of the 2D array will be 1000, PBM files are to be written to disk and initial seed will be 333.
 
-To assemble `cell.pbm` image, please run `python3 pbm_postprocessing.py` inside the directory with pbm partitions.
+To assemble `cell.pbm` image, please run `python3 pbm_processor.py` inside the directory with pbm partitions.
