@@ -13,7 +13,7 @@ def load_images(filepath, prefix='cell_', extension='pbm'):
             x_coord = int(x_coord)
             y_coord = int(y_coord)
 
-            image = imread(img, IMREAD_UNCHANGED)
+            image = imread(filename, IMREAD_UNCHANGED)
 
             if x_coord in image_map:
                 image_map[x_coord].append((y_coord, image))
