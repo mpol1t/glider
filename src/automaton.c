@@ -11,11 +11,11 @@
 
 
 /**
+ * Runs controller process.
  *
- *
- * @param sim
- * @param fst_generation
- * @param snd_generation
+ * @param sim               Simulation data.
+ * @param fst_generation    Buffer containing first generation of cells.
+ * @param snd_generation    Buffer containing second generation of cells.
  */
 void run_controller(SimulationData *sim, cell *fst_generation, cell *snd_generation) {
     unsigned long long local_live_cell_count, global_live_cell_count;
@@ -63,11 +63,11 @@ void run_controller(SimulationData *sim, cell *fst_generation, cell *snd_generat
 }
 
 /**
+ *  Runs worker process.
  *
- *
- * @param sim
- * @param fst_generation
- * @param snd_generation
+ * @param sim               Simulation data.
+ * @param fst_generation    Buffer containing first generation of cells.
+ * @param snd_generation    Buffer containing second generation of cells.
  */
 void run_worker(SimulationData *sim, cell *fst_generation, cell *snd_generation) {
     unsigned long long local_live_cell_count, global_live_cell_count;

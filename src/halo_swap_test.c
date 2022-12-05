@@ -9,12 +9,12 @@
 
 
 /**
+ * Helper function that generates 2d array of constant values.
  *
- *
- * @param buf
- * @param height
- * @param width
- * @param value
+ * @param buf       Target array.
+ * @param height    Array height.
+ * @param width     Array width.
+ * @param value     Constant to be used.
  */
 void generate_constant_population(cell *buf, int height, int width, cell value) {
     for (int i = 1; i < height - 1; i++) {
@@ -26,10 +26,10 @@ void generate_constant_population(cell *buf, int height, int width, cell value) 
 
 
 /**
+ * Helper function that generates population, resets and swaps halos.
  *
- *
- * @param pop
- * @param sim
+ * @param pop   Population of cells.
+ * @param sim   SimulationData struct.
  */
 void generate_reset_and_swap(cell *pop, SimulationData *sim) {
     generate_constant_population(pop, sim->local_augmented_height, sim->local_augmented_width, sim->rank);
@@ -39,14 +39,14 @@ void generate_reset_and_swap(cell *pop, SimulationData *sim) {
 }
 
 /**
+ * Copies halos in-place using provided buffers.
  *
- *
- * @param pop
- * @param up
- * @param down
- * @param left
- * @param right
- * @param sim
+ * @param pop   Population of cells.
+ * @param up    Upper halo buffer.
+ * @param down  Lower halo buffer.
+ * @param left  Left halo buffer.
+ * @param right Right halo buffer.
+ * @param sim   SimulationData struct.
  */
 void copy_halos(cell *pop, cell *up, cell *down, cell *left, cell *right, SimulationData *sim) {
     copy_row(pop, up, sim->local_augmented_width, sim->local_width, 0, 1);
@@ -56,7 +56,7 @@ void copy_halos(cell *pop, cell *up, cell *down, cell *left, cell *right, Simula
 }
 
 /**
- *
+ * Tests halo swapping in a 2d grid composed of nine processes.
  *
  * @param args
  */

@@ -171,14 +171,14 @@ void TESTCASE_check_upper_threshold_neg() {
  *
  */
 void TESTCASE_get_chunk_size_aligned() {
-    assert(get_chunk_size(4, 0, 2) == 2);
+    assert(get_side_length(4, 0, 2) == 2);
 }
 
 /**
  *
  */
-void TESTCASE_get_chunk_size_misaligned() {
-    assert(get_chunk_size(7, 1, 2) == 4);
+void TESTCASE_get_side_length_misaligned() {
+    assert(get_side_length(7, 1, 2) == 4);
 }
 
 
@@ -193,8 +193,8 @@ int main(int argc, char const *argv[]) {
     TESTCASE_check_lower_threshold_neg();
     TESTCASE_check_upper_threshold_pos();
     TESTCASE_check_upper_threshold_neg();
-    TESTCASE_get_chunk_size_aligned();
-    TESTCASE_get_chunk_size_misaligned();
+    TESTCASE_check_upper_threshold_neg();
+    TESTCASE_get_side_length_misaligned();
 
     printf("All tests passed!\n");
 

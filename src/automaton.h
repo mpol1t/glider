@@ -26,7 +26,7 @@ const int PERIODICITY[] = {1, 0};
 
 
 /**
- *
+ *  Container for swap buffers.
  */
 typedef struct {
     int halo_height;
@@ -51,7 +51,7 @@ typedef struct {
 
 
 /**
- *
+ * Container for simulation data.
  */
 typedef struct {
     /**
@@ -93,11 +93,11 @@ typedef struct {
 
 
 /**
+ * Initializes swap buffer struct.
  *
- *
- * @param halo_width
- * @param halo_height
- * @return
+ * @param halo_width    Halo width.
+ * @param halo_height   Halo height.
+ * @return              SwapBuffer struct with allocated buffers.
  */
 SwapBuffer *init_swap_buffer(unsigned int halo_width, unsigned int halo_height) {
     SwapBuffer *buf = malloc(sizeof(SwapBuffer));
@@ -127,9 +127,9 @@ SwapBuffer *init_swap_buffer(unsigned int halo_width, unsigned int halo_height) 
 
 
 /**
+ * Frees resources used by SwapBuffer struct.
  *
- *
- * @param buf
+ * @param buf   SwapBuffer to be freed.
  */
 void free_swap_buffer(SwapBuffer *buf) {
     free(buf->recv_buf);
@@ -148,11 +148,11 @@ void free_swap_buffer(SwapBuffer *buf) {
 
 
 /**
+ * Checks whether the size of cell population dropped below threshold.
  *
- *
- * @param live_cells
- * @param lower_threshold
- * @return
+ * @param live_cells        Population size.
+ * @param lower_threshold   Lower threshold.
+ * @return                  True if population size dropped below threshold, otherwise false.
  */
 inline bool check_lower_threshold(unsigned long long live_cells, unsigned long long lower_threshold) {
     return live_cells < lower_threshold;
@@ -160,11 +160,11 @@ inline bool check_lower_threshold(unsigned long long live_cells, unsigned long l
 
 
 /**
+ * Checks whether the size of cell population exceeded threshold.
  *
- *
- * @param live_cells
- * @param upper_threshold
- * @return
+ * @param live_cells        Population size.
+ * @param lower_threshold   Upper threshold.
+ * @return                  True if population size exceeded upper threshold, otherwise false.
  */
 inline bool check_upper_threshold(unsigned long long live_cells, unsigned long long upper_threshold) {
     return live_cells > upper_threshold;
@@ -172,23 +172,24 @@ inline bool check_upper_threshold(unsigned long long live_cells, unsigned long l
 
 
 /**
+ * Computes vertical/horizontal side length for a given position in 2d grid of processes. If given length doesn't
+ * divide by the number of processes, last process handles the remainder.
  *
- *
- * @param length
- * @param pos
- * @param n
+ * @param length    Side length.
+ * @param pos       Position/rank of the process.
+ * @param n         Number of rows/columns.
  * @return
  */
-int get_chunk_size(int length, int pos, int n) {
+int get_side_length(int length, int pos, int n) {
     return (pos + 1 == n) ? length - (floor(length / n) * (n - 1)) : floor(length / n);
 }
 
 
 /**
+ * Initialize simulation data.
  *
- *
- * @param args
- * @return
+ * @param args  Arguments struct that contains command line arguments.
+ * @return      Initialized SimulationData struct.
  */
 SimulationData init_simulation_data(Arguments *args) {
     MPI_Comm topology;
@@ -216,8 +217,8 @@ SimulationData init_simulation_data(Arguments *args) {
     MPI_Cart_coords(topology, rank, 2, coordinates);
 
     // Compute population shape.
-    local_width = get_chunk_size(args->length, coordinates[1], shape[1]);
-    local_height = get_chunk_size(args->length, coordinates[0], shape[0]);
+    local_width = get_side_length(args->length, coordinates[1], shape[1]);
+    local_height = get_side_length(args->length, coordinates[0], shape[0]);
 
     local_augmented_width = local_width + 2;
     local_augmented_height = local_height + 2;
@@ -249,21 +250,21 @@ SimulationData init_simulation_data(Arguments *args) {
 }
 
 /**
+ * Higher-order helper function that handles non-blocking communications for halo swapping logic.
  *
- *
- * @param pop
- * @param recv
- * @param send
- * @param halo_len
- * @param height
- * @param width
- * @param target
- * @param recv_req
- * @param send_req
- * @param comm
- * @param copy_halo_fn_ptr
+ * @param pop               Population of cells.
+ * @param recv              Receiving buffer.
+ * @param send              Sending buffer.
+ * @param halo_len          Halo length.
+ * @param height            Local augmented height of a partition.
+ * @param width             Local augmented width of a partition.
+ * @param target            Target rank.
+ * @param recv_req          Receive request buffer.
+ * @param send_req          Send request buffer.
+ * @param comm              Communicator.
+ * @param copy_halo_fn_ptr  Function that handles halo copying.
  */
-static inline void swap_halo(
+inline void swap_halo(
         cell *pop,
         cell *recv,
         cell *send,
@@ -276,18 +277,18 @@ static inline void swap_halo(
         MPI_Comm comm,
         void (*copy_halo_fn_ptr)(cell *, cell *, unsigned int, unsigned int)
 ) {
-    MPI_Irecv(recv, halo_len, MPI_CELL, target, MPI_ANY_TAG, comm, recv_req);
-    copy_halo_fn_ptr(pop, send, height, width);
-    MPI_Issend(send, halo_len, MPI_CELL, target, 0, comm, send_req);
+    MPI_Irecv(recv, halo_len, MPI_CELL, target, MPI_ANY_TAG, comm, recv_req);   // Start receiving message
+    copy_halo_fn_ptr(pop, send, height, width);                                 // Copy halo into send buffer.
+    MPI_Issend(send, halo_len, MPI_CELL, target, 0, comm, send_req);            // Start sending message.
 }
 
 
 /**
+ * Swaps halos between processes.
  *
- *
- * @param pop
- * @param buf
- * @param sim
+ * @param pop   Population of cells.
+ * @param buf   SwapBuffer struct.
+ * @param sim   SimulationData struct.
  */
 void swap_halos(cell *pop, SwapBuffer *buf, SimulationData *sim) {
     // Swap upper halos.
@@ -358,11 +359,11 @@ void swap_halos(cell *pop, SwapBuffer *buf, SimulationData *sim) {
 
 
 /**
+ * Initializes random seeds in-place for processes.
  *
- *
- * @param seed
- * @param n
- * @param seeds
+ * @param seed  Initial seed.
+ * @param n     Number of seeds to generate.
+ * @param seeds Seeds buffer.
  */
 void init_seeds(int seed, int n, int *seeds) {
     srand(seed);
@@ -374,11 +375,11 @@ void init_seeds(int seed, int n, int *seeds) {
 
 
 /**
+ * Prints worker data.
  *
- *
- * @param sim
+ * @param sim   SimulationData struct.
  */
-static inline void print_worker_data(SimulationData *sim) {
+inline void print_worker_data(SimulationData *sim) {
     printf("automaton: rank = %d, shape = [%d, %d], coordinates = (%d, %d), seed = %u\n", sim->rank,
            sim->local_height,
            sim->local_width, sim->x_coordinate, sim->y_coordinate, sim->local_seed);
@@ -386,37 +387,37 @@ static inline void print_worker_data(SimulationData *sim) {
 
 
 /**
+ * Prints simulation data.
  *
- *
- * @param sim
+ * @param sim   SimulationData struct.
  */
-static inline void print_simulation_data(SimulationData *sim) {
+inline void print_simulation_data(SimulationData *sim) {
     printf("automaton: L = %d, rho = %.5f, seed = %d, maxstep = %d\n", sim->args->length, sim->args->prob,
            sim->local_seed, sim->args->max_steps);
 }
 
 
 /**
+ * Prints simulation statistics.
  *
- *
- * @param step
- * @param global_live_cell_count
+ * @param step                      Current step.
+ * @param global_live_cell_count    Number of live cells in the population.
  */
-static inline void print_interval_data(unsigned int step, unsigned long long global_live_cell_count) {
+inline void print_interval_data(unsigned int step, unsigned long long global_live_cell_count) {
     printf("automaton: number of live cells on step %d is %llu\n", step, global_live_cell_count);
 }
 
 
 /**
- *
+ * Prints information if lower threshold is reached.
  */
-static inline void print_on_lower_threshold_touch() {
+inline void print_on_lower_threshold_touch() {
     printf("automaton: global cell count dropped below lower threshold\n");
 }
 
 
 /**
- *
+ * Prints information if upper threshold is reached.
  */
 static inline void print_on_upper_threshold_touch() {
     printf("automaton: global cell count exceeded upper threshold\n");

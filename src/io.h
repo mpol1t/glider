@@ -10,12 +10,12 @@
 
 
 /**
+ * Writes population to PBM file.
  *
- *
- * @param filename
- * @param population
- * @param height
- * @param width
+ * @param filename      Filename.
+ * @param population    Population of cells.
+ * @param height        Height of the population.
+ * @param width         Width of the population.
  */
 void to_pbm(char *filename, cell *population, unsigned int height, unsigned int width) {
     FILE *file;
