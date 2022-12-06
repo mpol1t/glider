@@ -12,8 +12,7 @@ INC= \
 
 SRC= \
 	automaton.c \
-	io.h \
-	population_utils.h
+
 
 #
 # No need to edit below this line
