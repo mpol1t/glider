@@ -1,7 +1,7 @@
 MF=	Makefile
 
 CC=	mpicc
-CFLAGS=	-O3 -Wall
+CFLAGS= -cc=icc -O3 -Wall
 
 LFLAGS= $(CFLAGS)
 
