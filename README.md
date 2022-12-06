@@ -30,13 +30,14 @@ To print usage, please run `./automaton --help`:
 
 ```
 Usage: automaton [OPTION...] [SEED]...
-MPI-based distributed 2D automaton.
+MPI-based distributed 2D cellular automaton.
 
+  -e, --early_stopping=NUM   If 0, early stopping is suppressed.
   -i, --print_interval=NUM   Number of steps between printing stats.
   -l, --length=NUM           Side length.
   -m, --max_steps=NUM        Maximum number of steps.
   -p, --prob=NUM             Probability of a cell being alive.
-  -w, --write_to_file=NUM    If 1, saves output to cell.pbm.
+  -w, --write_to_file=NUM    If 0, final IO is suppressed.
   -?, --help                 Give this help list
       --usage                Give a short usage message
   -V, --version              Print program version
