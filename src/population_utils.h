@@ -214,7 +214,7 @@ inline cell mpp_compute_state_sum(cell *mat, unsigned int i, unsigned int j, uns
  * @param buf       1D buffer that will contain augmented population at next time step.
  * @param height    Height of the augmented population.
  * @param width     Width of the augmented population.
- * @return          Number of live cells in the next time step.
+ * @return          Number of cells that changed the state.
  */
 unsigned int update_population(
         cell *mat,
@@ -224,18 +224,18 @@ unsigned int update_population(
         cell (*update_fn_ptr)(cell),
         cell (*state_fn_ptr)(cell *, unsigned int, unsigned int, unsigned int)
 ) {
-    unsigned int tally = 0;
+    unsigned int delta = 0;
     cell next_state;
 
     for (unsigned int i = 1; i < height - 1; i++) {
         for (unsigned int j = 1; j < width - 1; j++) {
             next_state = update_fn_ptr(state_fn_ptr(mat, i, j, width));
-            tally += next_state;
+            delta += (buf[i * width + j] != next_state) ? 1 : 0;
             buf[i * width + j] = next_state;
         }
     }
 
-    return tally;
+    return delta;
 }
 
 /***
