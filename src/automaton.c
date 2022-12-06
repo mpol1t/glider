@@ -50,15 +50,18 @@ void run_controller(SimulationData *sim, cell *fst_generation, cell *snd_generat
             print_interval_data(i, global_live_cell_count);
         }
 
-        if (check_lower_threshold(global_live_cell_count, sim->lower_early_stopping_threshold)) {
-            print_on_lower_threshold_touch();
-            break;
+        if (sim->args->early_stopping) {
+            if (check_lower_threshold(global_live_cell_count, sim->lower_early_stopping_threshold)) {
+                print_on_lower_threshold_touch();
+                break;
+            }
+
+            if (check_upper_threshold(global_live_cell_count, sim->upper_early_stopping_threshold)) {
+                print_on_upper_threshold_touch();
+                break;
+            }
         }
 
-        if (check_upper_threshold(global_live_cell_count, sim->upper_early_stopping_threshold)) {
-            print_on_upper_threshold_touch();
-            break;
-        }
     }
 }
 
@@ -95,12 +98,14 @@ void run_worker(SimulationData *sim, cell *fst_generation, cell *snd_generation)
 
         MPI_Allreduce(&local_live_cell_count, &global_live_cell_count, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, sim->comm);
 
-        if (check_lower_threshold(global_live_cell_count, sim->lower_early_stopping_threshold)) {
-            break;
-        }
+        if (sim->args->early_stopping) {
+            if (check_lower_threshold(global_live_cell_count, sim->lower_early_stopping_threshold)) {
+                break;
+            }
 
-        if (check_upper_threshold(global_live_cell_count, sim->upper_early_stopping_threshold)) {
-            break;
+            if (check_upper_threshold(global_live_cell_count, sim->upper_early_stopping_threshold)) {
+                break;
+            }
         }
     }
 }
