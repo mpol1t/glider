@@ -18,7 +18,7 @@
  * @param snd_generation    Buffer containing second generation of cells.
  */
 void run_controller(SimulationData *sim, cell *fst_generation, cell *snd_generation) {
-    unsigned long long local_live_cell_count, global_live_cell_count;
+    unsigned long long local_live_cell_count, global_live_cell_count, local_delta, global_delta;
     cell * tmp_generation;
 
     print_worker_data(sim);
@@ -30,9 +30,11 @@ void run_controller(SimulationData *sim, cell *fst_generation, cell *snd_generat
         }
 
         // Compute next generation.
-        local_live_cell_count = update_population(
+        update_population(
                 fst_generation,
                 snd_generation,
+                &local_live_cell_count,
+                &local_delta,
                 sim->local_augmented_height,
                 sim->local_augmented_width,
                 &mpp_update_cell,
@@ -44,10 +46,12 @@ void run_controller(SimulationData *sim, cell *fst_generation, cell *snd_generat
         fst_generation = snd_generation;
         snd_generation = tmp_generation;
 
+
         MPI_Allreduce(&local_live_cell_count, &global_live_cell_count, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, sim->comm);
+        MPI_Allreduce(&local_delta, &global_delta, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, sim->comm);
 
         if (i % sim->args->print_interval == 0) {
-            print_interval_data(i, global_live_cell_count);
+            print_interval_data(i, global_live_cell_count, global_delta);
         }
 
         if (sim->args->early_stopping) {
@@ -73,7 +77,7 @@ void run_controller(SimulationData *sim, cell *fst_generation, cell *snd_generat
  * @param snd_generation    Buffer containing second generation of cells.
  */
 void run_worker(SimulationData *sim, cell *fst_generation, cell *snd_generation) {
-    unsigned long long local_live_cell_count, global_live_cell_count;
+    unsigned long long local_live_cell_count, global_live_cell_count, local_delta, global_delta;
     cell * tmp_generation;
 
     print_worker_data(sim);
@@ -82,9 +86,11 @@ void run_worker(SimulationData *sim, cell *fst_generation, cell *snd_generation)
         swap_halos(fst_generation, sim->swap_buffer, sim);
 
         // Compute next generation.
-        local_live_cell_count = update_population(
+        update_population(
                 fst_generation,
                 snd_generation,
+                &local_live_cell_count,
+                &local_delta,
                 sim->local_augmented_height,
                 sim->local_augmented_width,
                 &mpp_update_cell,
@@ -97,6 +103,7 @@ void run_worker(SimulationData *sim, cell *fst_generation, cell *snd_generation)
         snd_generation = tmp_generation;
 
         MPI_Allreduce(&local_live_cell_count, &global_live_cell_count, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, sim->comm);
+        MPI_Allreduce(&local_delta, &global_delta, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, sim->comm);
 
         if (sim->args->early_stopping) {
             if (check_lower_threshold(global_live_cell_count, sim->lower_early_stopping_threshold)) {

@@ -208,34 +208,42 @@ inline cell mpp_compute_state_sum(cell *mat, unsigned int i, unsigned int j, uns
 
 /**
  * Computes state of the simulation at next time step using augmented population of cells. Update is performed in-place
- * using a buffer.
+ * using a buffer. Stats buffer is updated in-place with the number of live cells and the number of cells that changed
+ * state.
  *
  * @param mat       1D representation of an augmented population of cells.
  * @param buf       1D buffer that will contain augmented population at next time step.
  * @param height    Height of the augmented population.
  * @param width     Width of the augmented population.
- * @return          Number of cells that changed the state.
  */
-unsigned int update_population(
+void update_population(
         cell *mat,
         cell *buf,
+        unsigned long long *cells_alive,
+        unsigned long long *cells_delta,
         unsigned int height,
         unsigned int width,
         cell (*update_fn_ptr)(cell),
         cell (*state_fn_ptr)(cell *, unsigned int, unsigned int, unsigned int)
 ) {
-    unsigned int delta = 0;
+    unsigned long long delta = 0, alive = 0;
     cell next_state;
 
     for (unsigned int i = 1; i < height - 1; i++) {
         for (unsigned int j = 1; j < width - 1; j++) {
             next_state = update_fn_ptr(state_fn_ptr(mat, i, j, width));
-            delta += (buf[i * width + j] != next_state) ? 1 : 0;
+            alive += next_state;
+
+            if (buf[i * width + j] != next_state) {
+                delta += 1;
+            }
+
             buf[i * width + j] = next_state;
         }
     }
 
-    return delta;
+    *cells_alive = alive;
+    *cells_delta = delta;
 }
 
 /***
