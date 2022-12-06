@@ -403,8 +403,9 @@ inline void print_simulation_data(SimulationData *sim) {
  * @param step                      Current step.
  * @param global_live_cell_count    Number of live cells in the population.
  */
-inline void print_interval_data(unsigned int step, unsigned long long global_live_cell_count) {
-    printf("automaton: number of live cells on step %d is %llu\n", step, global_live_cell_count);
+inline void
+print_interval_data(unsigned int step, unsigned long long global_live_cell_count, unsigned long long global_delta) {
+    printf("automaton: step = %u, live cells = %llu, delta = %llu\n", step, global_live_cell_count, global_delta);
 }
 
 
