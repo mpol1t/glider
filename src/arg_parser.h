@@ -32,6 +32,9 @@ static struct argp_option options[] = {
 };
 
 
+/**
+ * Simple container for command line arguments.
+ */
 typedef struct {
     double prob;
     int length;
@@ -43,11 +46,20 @@ typedef struct {
 } Arguments;
 
 
+/**
+ * Main parsing routine.
+ *
+ * @param key   Short key
+ * @param arg   Command line argument.
+ * @param state Parsing state.
+ * @return
+ */
 static error_t parse_opt(int key, char *arg, struct argp_state *state) {
     Arguments *arguments = state->input;
 
     double prob;
 
+    // Switch over all options.
     switch (key) {
         case 'p':
             prob = atof(arg);
@@ -75,6 +87,7 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
             arguments->early_stopping = atoi(arg);
             break;
         case ARGP_KEY_ARG:
+            // Check number of args
             if (state->arg_num > 1) {
                 argp_usage(state);
             }
@@ -95,6 +108,11 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
 static struct argp argp = {options, parse_opt, args_doc, doc};
 
 
+/**
+ * Simple wrapper for default command line arguments.
+ *
+ * @return Default Arguments struct.
+ */
 Arguments default_args() {
     Arguments args = {
             .prob             = DEFAULT_PROB,
@@ -108,6 +126,13 @@ Arguments default_args() {
     return args;
 }
 
+/**
+ * Parses command line arguments.
+ *
+ * @param argc Argument count.
+ * @param argv Argument values.
+ * @return      Argument struct.
+ */
 Arguments parse_args(int argc, char *argv[]) {
     Arguments args = default_args();
 
