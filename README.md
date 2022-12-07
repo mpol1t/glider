@@ -45,7 +45,7 @@ MPI-based distributed 2D cellular automaton.
 Mandatory or optional arguments to long options are also mandatory or optional
 for any corresponding short options.
 
-Report bugs to s1548787@sms.ed.ac.uk.
+Report bugs to SECRET@sms.ed.ac.uk.
 ```
 
 For example, `mpirun -n 8 ./automaton -i 10 -l 1000 -m 10000 -w 1 333` will run the automaton using 8 processes and will print statistics every 10 iterations. Moreover, the side length of the 2D array will be 1000, PBM files are to be written to disk and initial seed will be 333.
