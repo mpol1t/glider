@@ -17,7 +17,7 @@
 
 
 const char *argp_program_version = "automaton 0.0.1";
-const char *argp_program_bug_address = "s1548787@sms.ed.ac.uk";
+const char *argp_program_bug_address = "SECRET@sms.ed.ac.uk";
 static char doc[] = "MPI-based distributed 2D cellular automaton.";
 static char args_doc[] = "[SEED]...";
 
