@@ -34,12 +34,10 @@ This will output:
 Usage: automaton [OPTION...] [SEED]...
 MPI-based distributed 2D cellular automaton.
 
-  -e, --early_stopping=NUM   If 0, early stopping is suppres![output](https://github.com/mpol1t/glider/assets/113708438/0ecdea7b-fe13-45dd-8802-6f6a87e1c8fe)
-sed.
+  -e, --early_stopping=NUM   If 0, early stopping is suppressed.
   -i, --print_interval=NUM   Number of steps between printing stats.
   -l, --length=NUM           Side length.
-  -m, --max_steps=NUM        Maximum number of steps.![output](https://github.com/mpol1t/glider/assets/113708438/9428cfb9-24d0-406d-a59b-c7ef0a5f34a5)
-
+  -m, --max_steps=NUM        Maximum number of steps.
   -p, --prob=NUM             Probability of a cell being alive.
   -w, --write_to_file=NUM    If 0, final IO is suppressed.
   -?, --help                 Give this help list
