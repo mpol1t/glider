@@ -6,11 +6,6 @@ Glider is a distributed two-dimensional automaton written in C and utilizing MPI
   <img src="example.gif" />
 </p>
 
-## Table of Contents
-1. [Building the Project](#building-the-project)
-2. [Usage](#usage)
-3. [Example](#example)
-
 ## Building the Project
 
 The project can be compiled using the provided `Makefile` in the `src/` directory.
