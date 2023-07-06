@@ -1,6 +1,6 @@
 # Glider
 
-Glider is a distributed two-dimensional automation system written in C and utilizing MPI (Message Passing Interface). It provides a distributed solution for running and visualizing cellular automaton simulations.
+Glider is a distributed two-dimensional automaton written in C and utilizing MPI (Message Passing Interface). It provides a distributed solution for running and visualizing cellular automaton simulations.
 
 <p align="center">
   <img src="example.gif" />
